@@ -435,10 +435,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  // ─── CONFIGURA TUS URLs AQUÍ ───────────────────────────────────────────────
-  const LAMBDA_TEXTO_URL   = "https://TU_API_GATEWAY_URL/texto";   // → DynamoDB
-  const LAMBDA_ARCHIVO_URL = "https://TU_API_GATEWAY_URL/archivo"; // → S3
-  // ──────────────────────────────────────────────────────────────────────────
+  const LAMBDA_TEXTO_URL   = "https://uxvn4lgh5k.execute-api.us-east-2.amazonaws.com/send";
+  const LAMBDA_ARCHIVO_URL = "https://uxvn4lgh5k.execute-api.us-east-2.amazonaws.com/send";
 
   // Tabs
   function switchTab(tab, btn) {
@@ -508,6 +506,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          tipo:      'texto',
           titulo:    titulo || 'Sin título',
           contenido: contenido,
           fecha:     new Date().toISOString()
@@ -545,8 +544,9 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          tipo:      'archivo',
           nombre:    nombre,
-          tipo:      file.type,
+          tipo_mime: file.type,
           archivo:   base64,
           fecha:     new Date().toISOString()
         })
