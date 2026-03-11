@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cargador de Documentos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --border: #2a2a30;
+      --accent: #e8ff47;
+      --accent2: #47c8ff;
+      --text: #f0f0f0;
+      --muted: #666672;
+      --success: #4fffb0;
+      --error: #ff5c5c;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Accent glow top */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(232,255,71,0.07) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 48px;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 4px 10px;
+      margin-bottom: 16px;
+      opacity: 0.85;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* URL Config notice */
+    .config-notice {
+      background: rgba(232,255,71,0.05);
+      border: 1px solid rgba(232,255,71,0.2);
+      border-left: 3px solid var(--accent);
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--accent);
+      margin-bottom: 32px;
+      line-height: 1.6;
+      animation: fadeDown 0.6s 0.1s ease both;
+    }
+
+    .config-notice code {
+      background: rgba(232,255,71,0.12);
+      padding: 1px 6px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 0;
+      margin-bottom: 0;
+      animation: fadeDown 0.6s 0.2s ease both;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 14px 20px;
+      background: var(--surface);
+      border: none;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .tab-btn:first-child { border-right: 1px solid var(--border); }
+
+    .tab-btn::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transition: transform 0.25s ease;
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      background: rgba(232,255,71,0.04);
+    }
+
+    .tab-btn.active::after { transform: scaleX(1); }
+
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    /* Panel */
+    .panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      padding: 32px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .panel.active { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+
+    /* Form elements */
+    .field { margin-bottom: 24px; }
+
+    label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea {
+      min-height: 220px;
+      line-height: 1.7;
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+      transition: color 0.2s;
+    }
+
+    .char-count.warn { color: var(--accent2); }
+
+    /* File drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: var(--accent2);
+      background: rgba(71,200,255,0.04);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .drop-label {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .drop-label strong { color: var(--accent2); }
+
+    .file-selected {
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: rgba(71,200,255,0.07);
+      border: 1px solid rgba(71,200,255,0.2);
+      font-size: 12px;
+      color: var(--accent2);
+      display: none;
+    }
+
+    .file-types {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Button */
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: var(--accent);
+      color: #0d0d0f;
+      border: none;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:hover { background: #f5ff7a; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn:disabled {
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-file {
+      background: var(--accent2);
+    }
+    .btn-file:hover { background: #7adeff; }
+
+    /* Spinner */
+    .btn .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0,0,0,0.3);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn.loading .btn-text { display: none; }
+    .btn.loading .spinner { display: block; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      padding: 14px 20px;
+      font-size: 13px;
+      font-family: 'DM Mono', monospace;
+      border-left: 3px solid;
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.35s ease;
+      max-width: 360px;
+    }
+
+    .toast.show { transform: none; opacity: 1; }
+    .toast.success { background: rgba(79,255,176,0.1); border-color: var(--success); color: var(--success); }
+    .toast.error { background: rgba(255,92,92,0.1); border-color: var(--error); color: var(--error); }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 28px 0;
+    }
+
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('texto', this)">📄 Texto / Párrafos</button>
+    <button class="tab-btn" onclick="switchTab('archivo', this)">📎 PDF / Imagen</button>
+  </div>
+
+  <!-- Panel: Texto -->
+  <div id="panel-texto" class="panel active">
+
+    <div class="field">
+      <label>Título del documento</label>
+      <input type="text" id="titulo" placeholder="Ej: Contrato enero 2026" />
+    </div>
+
+    <div class="field">
+      <label>Contenido del documento</label>
+      <textarea id="contenido" placeholder="Pega aquí el texto o párrafos del documento..." oninput="updateCount()"></textarea>
+      <div class="char-count" id="charCount">0 caracteres</div>
+    </div>
+
+    <button class="btn" id="btnTexto" onclick="enviarTexto()">
+      <span class="btn-text">Send</span>
+      <div class="spinner"></div>
+    </button>
+  </div>
+
+  <!-- Panel: Archivo -->
+  <div id="panel-archivo" class="panel">
+
+    <div class="field">
+      <label>Nombre descriptivo (opcional)</label>
+      <input type="text" id="nombreArchivo" placeholder="Ej: Contrato_cliente_enero" />
+    </div>
+
+    <div class="field">
+      <label>Archivo</label>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.webp" onchange="onFileSelected()" />
+        <span class="drop-icon">☁</span>
+        <div class="drop-label">
+          <strong>Haz clic</strong> o arrastra tu archivo aquí
+        </div>
+        <div class="file-types">PDF · PNG · JPG · WEBP</div>
+      </div>
+      <div class="file-selected" id="fileSelected"></div>
+    </div>
+
+    <button class="btn btn-file" id="btnArchivo" onclick="enviarArchivo()">
+      <span class="btn-text">Send</span>
+      <div class="spinner"></div>
+    </button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── CONFIGURA TUS URLs AQUÍ ───────────────────────────────────────────────
+  const LAMBDA_TEXTO_URL   = "https://TU_API_GATEWAY_URL/texto";   // → DynamoDB
+  const LAMBDA_ARCHIVO_URL = "https://TU_API_GATEWAY_URL/archivo"; // → S3
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // Tabs
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+  }
+
+  // Char counter
+  function updateCount() {
+    const n = document.getElementById('contenido').value.length;
+    const el = document.getElementById('charCount');
+    el.textContent = n.toLocaleString() + ' caracteres';
+    el.classList.toggle('warn', n > 50000);
+  }
+
+  // File selected
+  function onFileSelected() {
+    const file = document.getElementById('fileInput').files[0];
+    const el = document.getElementById('fileSelected');
+    if (file) {
+      const size = (file.size / 1024).toFixed(1);
+      el.textContent = `✔ ${file.name}  (${size} KB)`;
+      el.style.display = 'block';
+    }
+  }
+
+  // Drag & drop visual
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('dragover');
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    onFileSelected();
+  });
+
+  // Toast
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + type;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 4000);
+  }
+
+  // Set button loading state
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = loading;
+    btn.classList.toggle('loading', loading);
+  }
+
+  // ── Enviar texto → Lambda → DynamoDB ──────────────────────────────────────
+  async function enviarTexto() {
+    const titulo    = document.getElementById('titulo').value.trim();
+    const contenido = document.getElementById('contenido').value.trim();
+
+    if (!contenido) { showToast('El contenido no puede estar vacío.', 'error'); return; }
+
+    setLoading('btnTexto', true);
+
+    try {
+      const res = await fetch(LAMBDA_TEXTO_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo:    titulo || 'Sin título',
+          contenido: contenido,
+          fecha:     new Date().toISOString()
+        })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      showToast('✔ Texto guardado en DynamoDB', 'success');
+      document.getElementById('titulo').value    = '';
+      document.getElementById('contenido').value = '';
+      updateCount();
+
+    } catch (err) {
+      showToast('Error al guardar: ' + err.message, 'error');
+    } finally {
+      setLoading('btnTexto', false);
+    }
+  }
+
+  // ── Enviar archivo → Lambda → S3 ──────────────────────────────────────────
+  async function enviarArchivo() {
+    const file = document.getElementById('fileInput').files[0];
+    if (!file) { showToast('Selecciona un archivo primero.', 'error'); return; }
+
+    const nombre = document.getElementById('nombreArchivo').value.trim() || file.name;
+
+    setLoading('btnArchivo', true);
+
+    try {
+      // Convertir a base64 para enviar a Lambda
+      const base64 = await toBase64(file);
+
+      const res = await fetch(LAMBDA_ARCHIVO_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre:    nombre,
+          tipo:      file.type,
+          archivo:   base64,
+          fecha:     new Date().toISOString()
+        })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      showToast('✔ Archivo subido a S3', 'success');
+      document.getElementById('fileInput').value       = '';
+      document.getElementById('fileSelected').style.display = 'none';
+      document.getElementById('nombreArchivo').value   = '';
+
+    } catch (err) {
+      showToast('Error al subir: ' + err.message, 'error');
+    } finally {
+      setLoading('btnArchivo', false);
+    }
+  }
+
+  // Helper base64
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+</script>
+</body>
+</html>
